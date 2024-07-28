@@ -179,9 +179,15 @@ let invaderBullets = [];
 const sounds = {
     explosion: new Audio('sounds/explosion.wav'),
     invaderKilled: new Audio('sounds/invaderkilled.wav'),
-    shoot: new Audio('sounds/shoot.wav')
+    shoot: new Audio('sounds/shoot.wav'),
+    invaderMove1: new Audio('sounds/4.wav'),
+    invaderMove2: new Audio('sounds/5.wav')
 };
 
+// Add these variables for managing invader sounds
+let invaderSoundToggle = false;
+let lastInvaderMoveTime = 0;
+        
 
 // Initialize bases
 for (let i = 0; i < baseCount; i++) {
@@ -213,6 +219,8 @@ function gameLoop() {
 
 // Update game state
 function update() {
+    const currentTime = performance.now();
+
     if (player.isExploding) {
         player.explosionCounter++;
         if (player.explosionCounter >= 10) {
@@ -225,10 +233,10 @@ function update() {
                 if (player.lives <= 0) {
                     gameOver = true;
                 }
-                sounds.explosion.play(); // Play explosion sound when player dies
+                sounds.explosion.play();
             }
         }
-    } else {
+    } else {    
         // Player movement
         if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
         if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += player.speed;
@@ -236,7 +244,7 @@ function update() {
         // Player shooting
         if (keys['Space'] && player.canShoot && bullets.length === 0) {
             bullets.push({x: player.x + player.width / 2, y: player.y, width: 3, height: 15});
-            sounds.shoot.play(); // Play shoot sound
+            sounds.shoot.play();
             player.canShoot = false;
         }
     }
@@ -252,9 +260,11 @@ function update() {
 
     // Move and update invaders
     let shouldDropInvaders = false;
+    let invadersMoved = false;
     invaders.forEach(invader => {
         if (invader.isAlive && !invader.isExploding) {
             invader.x += invaderSpeed * invaderDirection;
+            invadersMoved = true;
             if (invader.x <= 0 || invader.x + invaderWidth >= canvas.width) {
                 shouldDropInvaders = true;
             }
@@ -280,6 +290,20 @@ function update() {
         });
     }
 
+    // Play invader movement sound
+    if (invadersMoved) {
+        const invaderMoveInterval = 1000 / (invaderSpeed * 4); // Adjust this formula as needed
+        if (currentTime - lastInvaderMoveTime >= invaderMoveInterval) {
+            if (invaderSoundToggle) {
+                sounds.invaderMove1.play();
+            } else {
+                sounds.invaderMove2.play();
+            }
+            invaderSoundToggle = !invaderSoundToggle;
+            lastInvaderMoveTime = currentTime;
+        }
+    }
+
     // Invader animation
     invaderAnimationCounter++;
     if (invaderAnimationCounter >= 30) {
@@ -301,22 +325,16 @@ function update() {
                 invader.isExploding = true;
                 invader.explosionCounter = 0;
                 bullets = bullets.filter(b => b !== bullet);
-                sounds.invaderKilled.play(); // Play invader killed sound
+                sounds.invaderKilled.play();
                 // Increase invader speed when an invader is destroyed
                 invaderSpeed = Math.min(maxInvaderSpeed, invaderSpeed + 0.01);
+                
+                // Adjust the pitch of the sound as speed increases
+                const pitchIncrease = 1 + (invaderSpeed - 0.2) / (maxInvaderSpeed - 0.2);
+                sounds.invaderMove1.playbackRate = pitchIncrease;
+                sounds.invaderMove2.playbackRate = pitchIncrease;
             }
         });
-    });
-
-    // Remove exploded invaders
-    invaders = invaders.filter(invader => {
-        if (invader.isExploding) {
-            invader.explosionCounter++;
-            if (invader.explosionCounter >= 30) {
-                return false; // Remove the invader after explosion animation
-            }
-        }   
-        return true;
     });
 
     invaderBullets.forEach(bullet => {
@@ -334,6 +352,7 @@ function update() {
         });
     });
 
+    // Check for game over condition
     if (invaders.every(invader => !invader.isAlive)) {
         gameOver = true;
         // You might want to add a "You Win!" message here
@@ -465,6 +484,10 @@ function initializeGame() {
     player.explosionFrame = 0;
     player.explosionCounter = 0;
     player.canShoot = true;
+    // Reset invader sound variables
+    invaderSoundToggle = false;
+    lastInvaderMoveTime = 0;
+    invaderSpeed = 0.1; // Reset to initial speed
 
     // Reset invaders
     initializeInvaders();
@@ -476,7 +499,7 @@ function initializeGame() {
             x: (i + 1) * (canvas.width / (baseCount + 1)) - baseWidth / 2,
             y: canvas.height - 100,
             width: baseWidth,
-            height: baseHeight,
+            height: baseHeight,     
             health: 100
         });
     }
@@ -485,7 +508,7 @@ function initializeGame() {
     bullets = [];
     invaderBullets = [];
 
-    // Reset game state
+    // Reset game state 
     invaderDirection = 1;
     invaderSpeed = 0.2;
     invaderAnimationFrame = 0;
@@ -555,6 +578,8 @@ document.addEventListener('click', () => {
     sounds.explosion.play().then(() => sounds.explosion.pause());
     sounds.invaderKilled.play().then(() => sounds.invaderKilled.pause());
     sounds.shoot.play().then(() => sounds.shoot.pause());
+    sounds.invaderMove1.play().then(() => sounds.invaderMove1.pause());
+    sounds.invaderMove2.play().then(() => sounds.invaderMove2.pause());
 });
 
 console.log("All code loaded");
